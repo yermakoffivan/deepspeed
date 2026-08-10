@@ -27,26 +27,18 @@ class _HeadCountProxy:
             setattr(self._module, name, value)
 
 
-def get_head_shard_sizes(num_heads, mp_group=None, num_kv_heads=None, meta: Optional[AutoTPMeta] = None):
+def get_head_shard_sizes(num_heads, mp_group=None, num_kv_heads=None):
     tp_world_size = dist.get_world_size(group=mp_group)
-    if num_kv_heads is None:
-        num_kv_heads = meta.num_kv_heads if meta is not None else None
     if num_kv_heads is not None and num_heads % num_kv_heads == 0:
         heads_per_kv = num_heads // num_kv_heads
         kv_shard_sizes = [
             num_kv_heads // tp_world_size + (rank < num_kv_heads % tp_world_size) for rank in range(tp_world_size)
         ]
         return [size * heads_per_kv for size in kv_shard_sizes]
-    return get_shard_size_list(num_heads, tp_world_size, meta or AutoTPMeta())
+    return get_shard_size_list(num_heads, tp_world_size, AutoTPMeta())
 
 
-def install_head_sharded_helper(module,
-                                name,
-                                wrapper,
-                                mp_group=None,
-                                num_heads=None,
-                                num_kv_heads=None,
-                                meta: Optional[AutoTPMeta] = None):
+def install_head_sharded_helper(module, name, wrapper, mp_group=None, num_heads=None, num_kv_heads=None):
     """Give ``module`` a head-slicing wrapper around one of its own methods.
 
     The wrapper is bound to this instance instead of installed on its class. A class-wide patch
@@ -58,7 +50,7 @@ def install_head_sharded_helper(module,
     if original_name not in module.__dict__:
         # Wrapping an already wrapped instance would make it delegate to itself.
         setattr(module, original_name, getattr(module, name))
-    shard_sizes = get_head_shard_sizes(num_heads, mp_group, num_kv_heads, meta) if num_heads is not None else None
+    shard_sizes = get_head_shard_sizes(num_heads, mp_group, num_kv_heads) if num_heads is not None else None
     setattr(
         module, name,
         functools.partial(wrapper, module, mp_group=mp_group, head_shard_sizes=shard_sizes, total_num_heads=num_heads))
