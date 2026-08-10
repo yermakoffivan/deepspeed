@@ -721,7 +721,9 @@ class DeepSpeedEngine(Module):
                             linear_layer_setting=(torch.nn.Linear, torch.nn.Embedding),
                             orig_layer_impl=None,
                             keep_module_on_host=tp_config.keep_module_on_host,
-                            partition_config=partition_config)
+                            partition_config=partition_config,
+                            model_config=model_config,
+                            tp_grain_size=tp_config.tensor_parallel.tp_grain_size)
             autotp.set_tensor_parallel_config(tp_size, tp_config.tensor_parallel.tp_group)
             autotp.update_linear_policies()
             autotp._replace_module(model)
@@ -759,6 +761,8 @@ class DeepSpeedEngine(Module):
                     orig_layer_impl=None,
                     keep_module_on_host=tp_config.keep_module_on_host,
                     partition_config=tp_plan_config,
+                    model_config=model_config,
+                    tp_grain_size=tp_config.tensor_parallel.tp_grain_size,
                 )
                 autotp.set_tensor_parallel_config(tp_size, tp_config.tensor_parallel.tp_group)
                 autotp.update_linear_policies()
